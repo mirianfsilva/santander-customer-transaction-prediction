@@ -1,2 +1,4 @@
 python==3.7.6
 pandas_profiling==2.9.0
+lightgbm==3.0.0
+xgboost==1.2.1
