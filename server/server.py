@@ -23,7 +23,7 @@ model = pickle.load(open('./lgbm.pkl','rb'))
 
 parser = api.parser()
 #In this case, my number of features: length=202
-number_features = 201
+number_features = 200
 
 #parse features for API
 for idx in range(number_features):
@@ -34,9 +34,16 @@ for idx in range(number_features):
         help='feature'+str(idx), 
         location='form'
     )
+parser.add_argument(
+    'ID_code',
+    type=str, 
+    required=False, 
+    help='id', 
+    location='form'
+)
 # Setup the request parameters, feed them into the model, and determine the transaction prediction (prababilites).
 resource_fields = api.model('Resource', {
-    'result': fields.Float
+    'result': fields.List(fields.Float)
 })
 
 upload_parser = api.parser()
@@ -47,19 +54,17 @@ upload_parser.add_argument('file', location='files', type=FileStorage, required=
 @api.expect(upload_parser)
 class Upload(Resource):
     def post(self):
-        args = parser.parse_args()
-        uploaded_file = args['file']  # This is FileStorage instance
-        url = pd.read_csv(uploaded_file)
-        return {'url': url}, 201
+        args = upload_parser.parse_args()
+        file = args.get('file')  # This is FileStorage instance
+        result = pd.read_csv(file)
+        return {'url': result}, 201
     
-    def get_results(self, args):
+    def get_results(self, file):
+        df = pd.DataFrame(file)
+        features = [c for c in df.columns if c not in ["ID_code"]]
         
-        df = pd.DataFrame(args)
-        clf = pickle.load('model.pkl');
-        result = clf.predict(df)
-
-        res = {'ID_code' : result}
-        return jsonify(res)
+        result = model.predict(features)
+        return result
 
 @ns.route('/predict')
 class PredictionApi(Resource):
@@ -87,14 +92,6 @@ class PredictionApi(Resource):
         res = {'ID_code' : result}
         return jsonify(res)
 
-# @ns.route('/predict', methods=['POST'])
-# def predict():
-#     data = request.get_json(force=True)
-#     prediction = model.predict(np.array([list(data.values())]))
-#     result = prediction[0]
-
-#     res = {'ID_code': int(result)}
-#     return jsonify(res)
 
 
 if __name__ == '__main__':
